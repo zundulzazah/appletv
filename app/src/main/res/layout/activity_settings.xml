@@ -1,0 +1,5 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="24dp" android:background="#0B0F1A">
+<TextView android:text="Pilih Style Grid" android:textColor="#FFF" android:textSize="22sp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+<Button android:id="@+id/btn_style_circle" android:text="Gambar 1 - Bulat Apple TV" android:layout_marginTop="20dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+<Button android:id="@+id/btn_style_rect" android:text="Gambar 2 - Kotak Banner" android:layout_marginTop="12dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+</LinearLayout>

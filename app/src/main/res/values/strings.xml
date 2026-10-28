@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AppleTV Sholat</string>
+    <string name="prayer_times">Prayer Times</string>
+    <string name="next_prayer">Next Prayer</string>
+</resources>
