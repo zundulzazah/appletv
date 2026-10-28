@@ -6,26 +6,40 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Create Android Project if Missing
+      - name: Create Android Project
         run: |
           rm -f "projek tv.zip" "projek tv (1).zip" || true
-          if [ ! -f "settings.gradle" ]; then
+          rm -rf temp app/build .gradle || true
+          
           cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           include ':app'
           EOF
-          fi
-          
-          if [ ! -f "build.gradle" ]; then
+
           cat > build.gradle <<'EOF'
           plugins {
               id 'com.android.application' version '8.2.2' apply false
           }
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
           EOF
-          fi
 
-          mkdir -p app/src/main/java/com/appletv app/src/main/res/layout app/src/main
+          mkdir -p app/src/main/java/com/appletv app/src/main
 
-          if [ ! -f "app/build.gradle" ]; then
           cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
@@ -52,10 +66,8 @@ jobs:
           }
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.11.0'
           }
           EOF
-          fi
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
