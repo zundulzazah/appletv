@@ -1,49 +1,37 @@
-name: Build from ZIP
+name: Build APK
 on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-    - name: Unzip Project
-      run: |
-        unzip -o "projek tv.zip" -d temp || unzip -o "projek tv (1).zip" -d temp || true
-        shopt -s dotglob
-        mv temp/*/* . 2>/dev/null || mv temp/* . 2>/dev/null || true
-        mv temp/.* . 2>/dev/null || true
-        rm -rf temp
-        rm -f "projek tv.zip" "projek tv (1).zip"
-        ls -la
-        ls -la .github/workflows/ || true
-        ls -la app/ || true
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Setup Android SDK
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+          unzip -q tools.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
 
-    - name: Setup Android SDK
-      run: |
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-        unzip -q tools.zip -d $HOME/android-sdk/cmdline-tools
-        mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+      - name: Build with Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: assembleDebug
 
-    - name: Build APK without gradlew
-      uses: gradle/gradle-build-action@v4
-      with:
-        arguments: assembleDebug
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: APK-TV
-        path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-TV
+          path: app/build/outputs/apk/debug/app-debug.apk
