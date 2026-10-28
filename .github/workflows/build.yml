@@ -43,7 +43,7 @@ jobs:
         arguments: assembleDebug
 
     - name: Upload APK
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: APK-TV
         path: app/build/outputs/apk/debug/app-debug.apk
