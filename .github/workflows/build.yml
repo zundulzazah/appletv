@@ -1,4 +1,4 @@
-name: Build APK Fix SDK
+name: Build APK
 
 on:
   push:
@@ -8,9 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -18,39 +19,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # HAPUS setup-android@v3, ganti dengan ini
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
 
-      - name: Extract ZIP if exists
-        run: |
-          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
-          if [ -n "$ZIP_FILE" ]; then
-            echo "Extract $ZIP_FILE"
-            unzip -o "$ZIP_FILE" -d .
-            rm "$ZIP_FILE"
-          fi
-          ls -lh
+      - name: Grant gradlew
+        run: chmod +x gradlew
 
-      - name: Build APK
-        run: |
-          # Kasih izin gradlew dimana pun dia berada
-          find . -name "gradlew" -type f -exec chmod +x {} \;
-          GRADLEW=$(find . -name "gradlew" | head -n 1)
-          if [ -z "$GRADLEW" ]; then
-            echo "gradlew tidak ada, bikin wrapper"
-            gradle wrapper --gradle-version 8.7
-            GRADLEW="./gradlew"
-            chmod +x $GRADLEW
-          fi
-          echo "Build with $GRADLEW"
-          $GRADLEW assembleDebug --no-daemon --stacktrace
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Fix
-          path: |
-            **/build/outputs/apk/debug/*.apk
+          name: APK-appletv-sholat
+          path: app/build/outputs/apk/debug/*.apk
