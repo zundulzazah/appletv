@@ -1,0 +1,31 @@
+name: Extract ZIP to Repo
+
+on:
+  workflow_dispatch: # jalan manual dari HP
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract semua ZIP
+        run: |
+          for ZIP in $(find . -maxdepth 2 -name "*.zip"); do
+            echo "Extract $ZIP..."
+            unzip -o "$ZIP" -d .
+            rm "$ZIP"
+          done
+          ls -lh
+          # hapus folder .github yang ke-double kalau ada di dalam zip
+          rm -rf extracted/ || true
+
+      - name: Commit hasil extract ke GitHub
+        run: |
+          git config user.name "HP Extract"
+          git config user.email "hp@github.com"
+          git add .
+          git commit -m "Auto extract ZIP dari HP" || echo "Tidak ada perubahan"
+          git push
