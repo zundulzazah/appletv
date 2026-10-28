@@ -1,44 +1,80 @@
-name: Build APK
-on: [push, workflow_dispatch]
+name: Extract & Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Extract ZIP
-        run: |
-          ZIP=$(ls *.zip 2>/dev/null | head -n1)
-          if [ -f "$ZIP" ]; then
-            unzip -o "$ZIP" -d .
-          fi
-          ls -la
-
-      - name: Setup JDK 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK - FIX
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Licenses & Install
+      - name: Extract ZIP Project
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          echo "Cari file ZIP di repo..."
+          ls -lh
+          
+          # Cari zip apapun di root
+          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
+          
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Ditemukan ZIP: $ZIP_FILE"
+            echo "Extract..."
+            unzip -o "$ZIP_FILE" -d .
+            # Hapus zip setelah extract biar tidak bingung
+            rm "$ZIP_FILE"
+            ls -lh
+          else
+            echo "Tidak ada file ZIP, lanjut build normal"
+          fi
+
+      - name: Make gradlew executable
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+          else
+            # kalau zip di dalam folder, cari gradlew
+            GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
+            if [ -n "$GRADLEW_PATH" ]; then
+              echo "Found gradlew at $GRADLEW_PATH"
+              chmod +x $GRADLEW_PATH
+              cd $(dirname $GRADLEW_PATH)/..
+            else
+              echo "gradlew tidak ditemukan, bikin wrapper baru"
+              gradle wrapper --gradle-version 8.7
+              chmod +x gradlew
+            fi
+          fi
 
       - name: Build APK
         run: |
-          if [ ! -f "gradlew" ]; then
-            gradle wrapper --gradle-version 8.7
+          # Cari folder yang ada gradlew
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            find . -name "gradlew" -exec chmod +x {} \;
+            GRADLEW=$(find . -name "gradlew" | head -n 1)
+            echo "Build pakai $GRADLEW"
+            $GRADLEW assembleDebug --no-daemon --stacktrace
           fi
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Launcher
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: APK-Sholat-TV
+          path: |
+            **/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/debug/*.apk
