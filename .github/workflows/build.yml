@@ -1,44 +1,41 @@
 name: Build APK from ZIP
 on: [push, workflow_dispatch]
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract ZIP if exists
+      - name: Extract ZIP
         run: |
-          ls -la
-          # cari file zip apapun
-          ZIPFILE=$(ls *.zip 2>/dev/null | head -n 1 || true)
-          if [ -z "$ZIPFILE" ]; then
-            ZIPFILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1 || true)
+          ZIP=$(ls *.zip 2>/dev/null | head -n1 || find . -name "*.zip" | head -n1)
+          if [ -f "$ZIP" ]; then
+            echo "Extract $ZIP"
+            unzip -o "$ZIP" -d .
           fi
-          
-          if [ -n "$ZIPFILE" ] && [ -f "$ZIPFILE" ]; then
-            echo "Found ZIP: $ZIPFILE"
-            sudo apt-get update -qq && sudo apt-get install -y unzip -qq
-            unzip -o "$ZIPFILE" -d ./extracted
-            # pindahkan isi extracted ke root jika ada folder app di dalamnya
-            if [ -d "./extracted/app" ]; then
-              cp -r ./extracted/* ./
-            else
-              # cari folder app di dalam extracted
-              APP_DIR=$(find ./extracted -type d -name "app" | head -n 1)
-              if [ -n "$APP_DIR" ]; then
-                echo "Found app at $APP_DIR"
-                cp -r $(dirname $APP_DIR)/* ./
-              else
-                cp -r ./extracted/* ./
-              fi
+          ls -R | head -n 100
+
+      - name: Fix Project Structure
+        run: |
+          # kalau hasil extract bikin folder double, rapikan
+          if [ ! -f "settings.gradle" ]; then
+            FOUND=$(find . -name "settings.gradle" | head -n1)
+            if [ -n "$FOUND" ]; then
+              echo "Found settings.gradle at $FOUND"
+              cp -r $(dirname $FOUND)/* ./
             fi
-            rm -rf ./extracted
-          else
-            echo "No ZIP found, using existing files"
           fi
-          ls -la
-          ls -la app/ || true
+          # pastikan ada settings.gradle
+          if [ ! -f "settings.gradle" ]; then
+            echo "Creating settings.gradle"
+            cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          include ':app'
+          EOF
+          fi
+          cat settings.gradle
+          cat app/build.gradle || cat build.gradle || true
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -47,28 +44,20 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build with Gradle Wrapper
         run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-          unzip -q tools.zip -d $HOME/android-sdk/cmdline-tools
-          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
-
-      - name: Build APK
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: 8.7
-          arguments: assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
-
+          # bikin wrapper jika tidak ada gradlew
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper --gradle-version 8.7
+          fi
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --info --no-daemon
+          
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: APK-TV-Launcher
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/**/*.apk
+          name: APK
+          path: "**/*.apk"
